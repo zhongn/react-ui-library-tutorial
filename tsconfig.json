@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "components",
-    "baseUrl": "components",
+    "allowJs": false,
     "target": "esnext",
     "module": "commonjs",
     "jsx": "react",
@@ -11,5 +10,6 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
-  }
+  },
+  "include": ["components"]
 }
