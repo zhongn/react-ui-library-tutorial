@@ -489,11 +489,10 @@ export default () => <Alert kind="warning"></Alert>;
 
 ![文档重构](https://tva1.sinaimg.cn/large/006tNbRwgy1ga1v3li0poj31l80u0wix.jpg)
 
-等等，下面显示的是`<BasicDemo />`，而非`demo`源码。
+等等，代码区域显示的是`<BasicDemo />`，而非`demo`源码。
 
 `<Playground />`组件暂时无法支持上述形式的展示：自定义下方展示的代码，而非`<Playground />`内部的代码。相关讨论如下：
 
-- [Allow to hide the LiveError overlay #907 ](https://github.com/doczjs/docz/pull/907)
 - [Allow to override the playground's editor's code #906 ](https://github.com/doczjs/docz/pull/906)
 
 其实第一条 `PR` 已经解决了问题，但是被关闭了，无奈。
@@ -788,7 +787,7 @@ exports.onCreateWebpackConfig = args => {
 
 ### 导出 Commonjs 模块
 
-其实完全可以使用`babel`或`tsc`命令行工具进行代码编译处理（实际上很多工具库就是这样做的），但考虑到还要**处理样式及其按需加载**，我们借助 `gulp` 来串起这个流程。
+其实完全可以使用`babel`或`tsc`命令行工具进行代码编译处理（实际上很多工具库就是这样做的），但考虑到还要**样式处理及其按需加载**，我们借助 `gulp` 来串起这个流程。
 
 #### babel 配置
 
@@ -847,7 +846,7 @@ not op_mini all
 
 对于组件库（代码量可能很大），个人建议将`polyfill`的选择权交还给使用者，在宿主环境进行`polyfill`。若使用者具有兼容性要求，自然会使用`@babel/preset-env + core-js + .browserslistrc`进行全局`polyfill`，这套组合拳引入了最低目标浏览器不支持`API`的全部 `polyfill`。
 
-> 业务开发中，将`@babel/preset-env`的`useBuiltIns`选项值设置为 `usage`，同时把`node_modules`从`babel-loader`中`exclude`掉的同学可能想要这个特性：["useBuiltIns: usage" for node_modules without transpiling #9419](https://github.com/babel/babel/issues/9419)，在未支持该`issue`提到的内容之前，还是乖乖地将`useBuiltIns`设置为`entry`，或者不要把`node_modules`从`babel-loader`中`exclude`。
+> 顺带一提，业务开发中，若将`@babel/preset-env`的`useBuiltIns`选项值设置为 `usage`，同时把`node_modules`从`babel-loader`中`exclude`，会导致`babel` 无法检测到`nodes_modules`中所需要的`polyfill`。["useBuiltIns: usage" for node_modules without transpiling #9419](https://github.com/babel/babel/issues/9419)，在未支持该`issue`提到的内容之前，请将`useBuiltIns`设置为`entry`，或者不要把`node_modules`从`babel-loader`中`exclude`。
 
 所以组件库不用画蛇添足，引入多余的`polyfill`，写好文档说明，比什么都重要（就像[zent](https://github.com/youzan/zent#required-polyfills)和[antd](https://ant.design/docs/react/getting-started-cn#%E5%85%BC%E5%AE%B9%E6%80%A7)这样）。
 
@@ -1119,18 +1118,14 @@ const build = gulp.parallel(buildScripts, copyLess);
 └── index.js
 ```
 
-可能有些同学已经发现问题：若使用者没有使用`less`预处理器，使用的是`sass`方案甚至原生`css`方案，那现有方案就搞不定了。经分析，有以下 3 种预选方案：
+可能有些同学已经发现问题：若使用者没有使用`less`预处理器，使用的是`sass`方案甚至原生`css`方案，那现有方案就搞不定了。经分析，有以下 4 种预选方案：
 
-1. 告知用户增加`less-loader`；
-2. 打包出一份完整的 `css` 文件，进行**全量**引入；
-3. 单独提供一份`style/css.js`文件，引入的是组件 `css`样式文件依赖，而非 `less` 依赖，组件库底层抹平差异；
-4. 使用`css in js`方案。
+1. 告知使用方增加`less-loader`。会导致业务方使用成本增加；
+2. 打包出一份完整的 `css` 文件，进行**全量**引入。无法进行按需引入；
+3. 使用`css in js`方案；
+4. 提供一份`style/css.js`文件，引入组件 `css`样式依赖，而非 `less` 依赖，组件库底层抹平差异。
 
-方案 1 会导致业务方使用成本增加。
-
-方案 2 无法进行按需引入。
-
-方案 4 需要详细聊聊。
+重点看一看方案 3 以及方案 4。
 
 `css in js`除了赋予样式编写更多的可能性之外，在编写第三方组件库时更是利器。
 
@@ -1148,30 +1143,30 @@ const build = gulp.parallel(buildScripts, copyLess);
 
 1. 样式无法单独缓存；
 2. styled-components 自身体积较大；
-3. 复写组件样式需要使用属性选择器或者使用`styled-components`，麻烦了点。
+3. 复写组件样式需要使用属性选择器或者使用`styled-components`自带方法。
 
 需要看取舍了，偷偷说一句`styled-components`做主题定制也极其方便。
 
-方案 3 是`antd`使用的这种方案。
+方案 4 是`antd`使用的这种方案。
 
 在搭建组件库的过程中，有一个问题困扰了我很久：为什么需要`alert/style/index.js`引入`less`文件或`alert/style/css.js`引入`css`文件？
 
 答案是**管理样式依赖**。
 
-因为我们的组件是没有引入样式文件的，需要用户去手动引入。
+因为我们的组件是没有引入样式文件的，需要使用者去手动引入。
 
-假设存在以下场景：引入`<Button />`，`<Button />`依赖了`<Icon />`，使用者需要手动去引入调用的组件的样式（`<Button />`）及其依赖的组件样式（`<Icon />`），遇到复杂组件极其麻烦，所以组件库开发者可以提供一份这样的`js`文件，使用者手动引入这个`js`文件，就能引入对应组件及其依赖组件的样式。
+假设存在以下场景：使用者引入`<Button />`，`<Button />`依赖了`<Icon />`，则需要手动去引入调用组件的样式（`<Button />`）及其依赖的组件样式（`<Icon />`），遇到复杂组件极其麻烦，所以组件库开发者可以提供一份这样的`js`文件，使用者手动引入这个`js`文件，就能引入对应组件及其依赖组件的样式。
 
 那么问题又来了，为什么组件不能自己去`import './index.less'`呢？
 
-可以，不过业务方要配置`less-loader`，什么，业务方不想配，要你`import './index.css'`？🙃
+可以，不过需要使用方要配置`less-loader`，什么，业务方不想配，要你`import './index.css'`？🙃
 
-可以，业务方爽了，组件开发方不爽。
+可以，使用方爽了，组件开发方不爽。
 
 所以我们要找一个大家都爽的方案：
 
 1. 开发方能够开心的使用预处理器；
-2. 业务方不需要额外的使用成本。
+2. 使用方不需要额外的使用成本。
 
 答案就是~~css in js~~单独提供一份`style/css.js`文件，引入的是组件 `css`样式文件依赖，而非 `less` 依赖，组件库底层抹平差异。
 
@@ -1522,8 +1517,6 @@ yarn test
 5. 发布至 npm
 6. 打 tag 并推送至 git
 
-如果你不想代码，很好，用[np](https://www.npmjs.com/package/np)（如果我一开始就知道这个工具，我也不会去写代码，我真傻，真的）。
-
 **package.json**
 
 ```diff
@@ -1532,7 +1525,8 @@ yarn test
 },
 ```
 
-直接甩代码吧，实在不复杂。
+<details>
+<summary>展开查看代码</summary>
 
 ```ts
 /* eslint-disable  import/no-extraneous-dependencies,@typescript-eslint/camelcase, no-console */
@@ -1584,7 +1578,7 @@ const timeLog = (logInfo: string, type: 'start' | 'end') => {
 };
 
 /**
- * 获取下一次版本号
+ * 询问获取下一次版本号
  */
 async function prompt(): Promise<string> {
   const nextVersions = getNextVersions();
@@ -1614,6 +1608,9 @@ async function updateVersion(nextVersion: string) {
   timeLog('修改package.json版本号', 'end');
 }
 
+/**
+ * 生成CHANGELOG
+ */
 async function generateChangelog() {
   timeLog('生成CHANGELOG.md', 'start');
   await run(' npx conventional-changelog -p angular -i CHANGELOG.md -s -r 0');
@@ -1684,44 +1681,38 @@ async function main() {
 main();
 ```
 
+</details>
+
+如果你对这一节不感兴趣，也可以直接使用[np](https://www.npmjs.com/package/np)进行发布，需要自定义配置一些钩子。
+
 ## 初始化组件
 
-每次初始化一个组件就要新建许多文件以及文件夹，复制粘贴也可，不过还可以使用更高级一点的偷懒方式。
+每次初始化一个组件就要新建许多文件（夹），复制粘贴也可，不过还可以使用更高级一点的偷懒方式。
 
-常规思路，新建一个组件模板文件夹，里面包含一个组件所需要的所有文件，同时写好文件内容。
+思路如下：
 
-至于一些动态内容，譬如组件中英文名称，选一个你喜欢的模板语言（如 handlebars），用其方式留空`{{componentName}}`。
+1. 创建组件模板，预留动态信息插槽（组件名称，组件描述等等）；
+2. 基于`inquirer.js`询问动态信息；
+3. 将信息插入模板，渲染至`components`文件夹下；
+4. 向 components/index.ts 插入导出语句。
+
+我们只需要配置好模板以及问题，至于询问以及渲染就交给[plop.js](https://plopjs.com/)吧。
+
+```bash
+yarn add plop --dev
+```
+
+新增脚本命令。
 
 **package.json**
 
 ```diff
 "scripts": {
-+ "new": "ts-node ./scripts/new.ts"
-},
-```
-
-接下来我们在`new.ts`中编写相关步骤，无非是：
-
-1. 基于`inquirer.js`询问一些基本组件信息
-2. 结合信息，渲染模板（填空）至组件文件夹
-3. 向 components/index.ts 插入导出语句
-
-你以为我会写`new.ts`吗，不，我不会（虽然我真写过）。
-
-主要是使用[metalsmith](https://github.com/segmentio/metalsmith)进行数据与模板结合，写脚手架的同学可能比较熟悉。
-
-自从我知道了[plop.js](https://plopjs.com/)这个库，那么又可以偷懒了（为什么之前没有人告诉我有这么多好用的工具？？？）
-
-```diff
-"scripts": {
-- "new": "ts-node ./scripts/new.ts",
 + "new": "plop --plopfile ./scripts/plopfile.ts",
 },
 ```
 
-于是上述流程可以大大简化，不需要写代码去询问，不需要手动渲染模板，我们要做的就是写好模板，并且配置好问题以及渲染目的地。
-
-详情可见：
+新增配置文件以及组件模板，详情可见：
 
 - 配置文件：[scripts/plopfile.ts](https://github.com/worldzhao/react-ui-library-tutorial/blob/master/scripts/plopfile.ts)
 - 模板文件：[templates/component](https://github.com/worldzhao/react-ui-library-tutorial/tree/master/templates/component)
